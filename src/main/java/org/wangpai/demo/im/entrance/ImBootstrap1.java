@@ -16,13 +16,12 @@ import org.wangpai.demo.im.view.MainFace;
 public class ImBootstrap1 extends Application {
     @Override
     public void start(Stage stage) {
-        var myIp = "127.0.0.1";
-        var myPort = 3311;
-        var server = Server.getInstance().setIp(myIp).setPort(myPort);
+        var myServerPort = 3311;
+        var server = Server.getInstance().setPort(myServerPort);
         Multithreading.execute(() -> server.start());
-        var otherIp = "127.0.0.1";
-        var otherPort = 3322;
-        var client = Client.getInstance().setIp(otherIp).setPort(otherPort);
+        var otherServerIp = "127.0.0.1";
+        var otherServerPort = 3322;
+        var client = Client.getInstance().setIp(otherServerIp).setPort(otherServerPort);
 
         var mainFace = MainFace.getInstance();
         mainFace.setClient(client);

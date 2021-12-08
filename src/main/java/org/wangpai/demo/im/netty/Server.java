@@ -2,7 +2,6 @@ package org.wangpai.demo.im.netty;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
@@ -11,6 +10,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import lombok.Setter;
 import lombok.experimental.Accessors;
@@ -21,9 +21,6 @@ import org.wangpai.demo.im.view.MainFace;
  */
 @Accessors(chain = true)
 public class Server {
-    @Setter
-    private String ip;
-
     @Setter
     private int port;
 
@@ -48,20 +45,22 @@ public class Server {
             protected void initChannel(SocketChannel ch) {
                 var pipeline = ch.pipeline();
                 // 定义服务端 HTTP 编解码器
-                pipeline.addLast("http-codec", new HttpServerCodec());
+                pipeline.addLast(new HttpServerCodec());
                 // 定义分段请求聚合时，字节的最大长度
-                pipeline.addLast("aggregator", new HttpObjectAggregator(65535));
+                pipeline.addLast(new HttpObjectAggregator(65535));
                 // 定义块写处理器
-                pipeline.addLast("http-chunked", new ChunkedWriteHandler());
-                // 定义业务处理器
-                pipeline.addLast("businessHandler", new WebsocketServerHandler(mainFace, ip, port));
+                pipeline.addLast(new ChunkedWriteHandler());
+                // 设置监听的路径
+                pipeline.addLast(new WebSocketServerProtocolHandler("/" + Protocol.WEBSOCKET_PREFIX_PATH));
+
+                // 定义业务处理器-文本处理器
+                pipeline.addLast(new TextServerHandler(mainFace));
             }
         });
 
         try {
-            ChannelFuture channelFuture = bootstrap.bind().sync();
-            ChannelFuture closeFuture = channelFuture.channel().closeFuture();
-            closeFuture.sync();
+            bootstrap.bind().sync()
+                    .channel().closeFuture().sync();
         } catch (Exception exception) {
             exception.printStackTrace(); // FIXME：日志
         } finally {

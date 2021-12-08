@@ -20,19 +20,24 @@ import io.netty.handler.codec.http.websocketx.WebSocketVersion;
 import io.netty.handler.stream.ChunkedWriteHandler;
 import java.net.URI;
 import java.net.URISyntaxException;
-import lombok.Setter;
-import lombok.experimental.Accessors;
 
 /**
  * @since 2021-12-1
  */
-@Accessors(chain = true)
 public class Client {
-    @Setter
-    private String ip;
+    private String otherServerIp;
 
-    @Setter
-    private int port;
+    private int otherServerPort;
+
+    public Client setIp(String otherServerIp) {
+        this.otherServerIp = otherServerIp;
+        return this;
+    }
+
+    public Client setPort(int otherServerPort) {
+        this.otherServerPort = otherServerPort;
+        return this;
+    }
 
     private Channel channel;
 
@@ -46,18 +51,18 @@ public class Client {
         bootstrap.group(workerLoopGroup);
         bootstrap.channel(NioSocketChannel.class);
         // 设置接收端的 IP 和端口号，但实际上，自己作为发送端也会为自己自动生成一个端口号
-        bootstrap.remoteAddress(ip, port);
+        bootstrap.remoteAddress(otherServerIp, otherServerPort);
         bootstrap.option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel ch) {
                 var pipeline = ch.pipeline();
-                // 定义客户端端 HTTP 编解码器
-                pipeline.addLast("http-codec", new HttpClientCodec());
+                // 定义客户端 HTTP 编解码器
+                pipeline.addLast(new HttpClientCodec());
                 // 定义分段请求聚合时，字节的最大长度
-                pipeline.addLast("aggregator", new HttpObjectAggregator(65535));
+                pipeline.addLast(new HttpObjectAggregator(65535));
                 // 定义块写处理器
-                pipeline.addLast("http-chunked", new ChunkedWriteHandler());
+                pipeline.addLast(new ChunkedWriteHandler());
                 // 定义业务处理器
                 pipeline.addLast("businessHandler", businessHandler);
             }
@@ -87,6 +92,10 @@ public class Client {
         return this;
     }
 
+    private String generateWebsocketUrl(String ip, int port, String relativePath) {
+        return String.format("ws://%s:%d/%s", ip, port, relativePath);
+    }
+
     /**
      * 进行三报文握手中的第一握手，由客户端发起
      *
@@ -95,7 +104,9 @@ public class Client {
     private WebSocketClientHandshaker getWebSocketClientHandshaker() {
         URI websocketUri = null;
         try {
-            websocketUri = new URI("ws://localhost:8899/ws");
+            // 对于这个 URL，只有 relativePath 是起作用的，ip、port 不起使用。原因不明
+            websocketUri = new URI(this.generateWebsocketUrl(this.otherServerIp, this.otherServerPort,
+                    Protocol.WEBSOCKET_PREFIX_PATH));
         } catch (URISyntaxException exception) {
             exception.printStackTrace(); // FIXME：日志
         }

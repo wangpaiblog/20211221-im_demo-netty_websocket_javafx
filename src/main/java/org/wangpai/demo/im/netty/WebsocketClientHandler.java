@@ -42,12 +42,6 @@ public class WebsocketClientHandler extends ChannelInboundHandlerAdapter {
         } else {
             // 此分支不应该发生
         }
-
-        try {
-            super.channelRead(ctx, obj);
-        } catch (Exception exception) {
-            exception.printStackTrace(); // TODO：日志
-        }
     }
 
     @Override
